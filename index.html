@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Lemmings">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#141824">
+  <title>Lemmings Cavern Rescue</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+  <style>
+    :root {
+      --bg-dark: #090c12;
+      --hud-bg: #141824;
+      --hud-border: #2a334a;
+      --btn-bg: #1d2436;
+      --btn-active: #2a3856;
+      --accent: #00e5ff;
+      --gold: #ffd32a;
+      --green: #2ed573;
+      --red: #ff4757;
+      --text-main: #ecf0f1;
+      --text-dim: #95a5a6;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+      touch-action: none;
+    }
+
+    #app-shell {
+      display: flex;
+      flex-direction: column;
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      padding-left: env(safe-area-inset-left, 0px);
+      padding-right: env(safe-area-inset-right, 0px);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+      background: var(--bg-dark);
+    }
+
+    /* TOP STATUS BAR */
+    #top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      height: 36px;
+      padding: 0 10px;
+      background: var(--hud-bg);
+      border-bottom: 2px solid var(--hud-border);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+      flex-shrink: 0;
+      z-index: 10;
+    }
+
+    .top-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .hud-pill {
+      background: #0d111a;
+      border: 1px solid #263047;
+      border-radius: 5px;
+      padding: 4px 8px;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #hud-saved.quota-met {
+      color: var(--green);
+      border-color: var(--green);
+    }
+
+    #hud-timer {
+      color: var(--gold);
+      font-size: 13px;
+    }
+
+    #hud-timer.low-time {
+      color: var(--red);
+      animation: pulse-warn 0.8s infinite alternate;
+    }
+
+    @keyframes pulse-warn {
+      from { opacity: 1; }
+      to { opacity: 0.45; }
+    }
+
+    .top-btn {
+      background: var(--btn-bg);
+      color: var(--text-main);
+      border: 1px solid #384666;
+      border-radius: 5px;
+      padding: 4px 9px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .top-btn:active {
+      transform: translateY(1px);
+    }
+
+    .top-btn.hidden {
+      display: none;
+    }
+
+    /* MAIN VIEWPORT & CANVAS */
+    #viewport {
+      position: relative;
+      flex: 1;
+      width: 100%;
+      min-height: 0;
+      overflow: hidden;
+      background: #070a0f;
+    }
+
+    #game-canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+      cursor: crosshair;
+    }
+
+    /* FLOATING LEVEL INTRO / HINT BANNER */
+    #level-banner {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(14, 20, 32, 0.92);
+      border: 1px solid var(--accent);
+      border-radius: 8px;
+      padding: 7px 14px;
+      text-align: center;
+      pointer-events: none;
+      max-width: 88%;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+      transition: opacity 0.3s ease;
+      z-index: 5;
+    }
+
+    #level-banner.hidden {
+      opacity: 0;
+    }
+
+    #banner-title {
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--accent);
+      margin-bottom: 2px;
+    }
+
+    #banner-hint {
+      font-size: 11px;
+      color: var(--text-main);
+    }
+
+    /* BOTTOM SKILL & CONTROL BAR */
+    #bottom-bar {
+      display: flex;
+      align-items: stretch;
+      justify-content: space-between;
+      gap: 4px;
+      height: 62px;
+      padding: 4px 6px;
+      background: var(--hud-bg);
+      border-top: 2px solid var(--hud-border);
+      flex-shrink: 0;
+      z-index: 10;
+    }
+
+    /* RELEASE RATE WIDGET */
+    .rate-box {
+      display: flex;
+      align-items: center;
+      background: #0e121c;
+      border: 1px solid #2b354d;
+      border-radius: 6px;
+      padding: 2px;
+      gap: 2px;
+      flex-shrink: 0;
+    }
+
+    .rate-btn {
+      width: 28px;
+      height: 100%;
+      background: var(--btn-bg);
+      color: var(--gold);
+      border: 1px solid #32405f;
+      border-radius: 4px;
+      font-size: 16px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .rate-btn:active {
+      background: var(--btn-active);
+    }
+
+    .rate-readout {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-width: 34px;
+      padding: 0 2px;
+    }
+
+    .rate-label {
+      font-size: 8px;
+      color: var(--text-dim);
+      font-weight: 700;
+    }
+
+    #hud-rate {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--gold);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* 8 CLASSIC SKILL BUTTONS */
+    #skills-strip {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 4px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .skill-btn {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 3px 2px;
+      background: var(--btn-bg);
+      color: var(--text-main);
+      border: 2px solid #2f3b56;
+      border-radius: 6px;
+      cursor: pointer;
+      min-width: 0;
+      transition: border-color 0.1s, background 0.1s;
+    }
+
+    .skill-btn.selected {
+      background: #1c354d;
+      border-color: var(--accent);
+      box-shadow: 0 0 8px rgba(0, 229, 255, 0.35) inset;
+    }
+
+    .skill-btn.depleted {
+      opacity: 0.42;
+    }
+
+    .skill-count {
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--gold);
+      background: rgba(0, 0, 0, 0.45);
+      padding: 0 4px;
+      border-radius: 3px;
+      line-height: 1.2;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .skill-icon {
+      width: 18px;
+      height: 18px;
+      fill: currentColor;
+    }
+
+    .skill-name {
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.2px;
+      text-transform: uppercase;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+    }
+
+    /* UTILITY CONTROLS (PAUSE, 2X, RESTART, NUKE) */
+    .utility-strip {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    .util-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-width: 40px;
+      padding: 2px 5px;
+      background: var(--btn-bg);
+      color: var(--text-main);
+      border: 2px solid #2f3b56;
+      border-radius: 6px;
+      font-size: 9px;
+      font-weight: 800;
+      cursor: pointer;
+      gap: 2px;
+    }
+
+    .util-btn .util-icon {
+      font-size: 14px;
+      line-height: 1;
+    }
+
+    .util-btn.active-toggle {
+      background: #3d2c0e;
+      border-color: var(--gold);
+      color: var(--gold);
+    }
+
+    .util-btn.nuke-btn {
+      border-color: #5c232b;
+      color: #ff7675;
+    }
+
+    .util-btn.nuke-btn.active-toggle {
+      background: #5c1922;
+      border-color: var(--red);
+      color: #fff;
+    }
+
+    /* MODALS (LEVEL SELECT & WIN/LOSE SCREEN) */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(5, 8, 14, 0.84);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 50;
+    }
+
+    .modal-backdrop.hidden {
+      display: none;
+    }
+
+    .modal-box {
+      background: #151b29;
+      border: 2px solid #37476b;
+      border-radius: 12px;
+      padding: 18px 20px;
+      width: 100%;
+      max-width: 480px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.75);
+      text-align: center;
+    }
+
+    .modal-title {
+      font-size: 20px;
+      font-weight: 900;
+      letter-spacing: 0.8px;
+      margin-bottom: 4px;
+    }
+
+    .win-text { color: var(--green); }
+    .lose-text { color: var(--red); }
+
+    .modal-subtitle {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-bottom: 14px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .stat-card {
+      background: #0d111a;
+      border: 1px solid #28344f;
+      border-radius: 8px;
+      padding: 8px 6px;
+    }
+
+    .stat-label {
+      font-size: 10px;
+      color: var(--text-dim);
+      margin-bottom: 3px;
+    }
+
+    .stat-val {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--gold);
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .action-btn {
+      background: #243452;
+      color: #fff;
+      border: 2px solid #486394;
+      border-radius: 8px;
+      padding: 9px 16px;
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .action-btn.primary {
+      background: #125435;
+      border-color: var(--green);
+    }
+
+    /* LEVEL SELECT LIST */
+    #levels-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin: 12px 0;
+      text-align: left;
+    }
+
+    .level-card {
+      width: 100%;
+      background: #0e131f;
+      color: var(--text-main);
+      border: 1px solid #2d3a59;
+      border-radius: 8px;
+      padding: 9px 12px;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .level-card.active {
+      border-color: var(--accent);
+      background: #142238;
+    }
+
+    .level-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 3px;
+    }
+
+    .level-num {
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--accent);
+    }
+
+    .level-best {
+      font-size: 10px;
+      font-weight: 800;
+      color: var(--gold);
+      background: rgba(255, 211, 42, 0.14);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .level-desc {
+      font-size: 11px;
+      color: var(--text-main);
+      margin-bottom: 3px;
+    }
+
+    .level-meta {
+      font-size: 10px;
+      color: var(--text-dim);
+    }
+
+    /* PORTRAIT ORIENTATION HINT OVERLAY */
+    #rotate-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(9, 12, 18, 0.96);
+      z-index: 100;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+      gap: 14px;
+    }
+
+    #rotate-overlay .phone-icon {
+      font-size: 46px;
+      animation: tilt-phone 1.6s ease-in-out infinite alternate;
+    }
+
+    @keyframes tilt-phone {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(-90deg); }
+    }
+
+    @media (orientation: portrait) {
+      #rotate-overlay:not(.dismissed) {
+        display: flex;
+      }
+    }
+
+    @media (max-width: 680px) {
+      #top-bar {
+        height: 30px;
+        font-size: 10px;
+        padding: 0 6px;
+      }
+      #bottom-bar {
+        height: 54px;
+        padding: 3px 4px;
+      }
+      .skill-name {
+        font-size: 8px;
+      }
+      .util-btn {
+        min-width: 34px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app-shell">
+    <!-- TOP HUD BAR -->
+    <header id="top-bar">
+      <div class="top-group">
+        <button type="button" id="btn-levels" class="top-btn" title="Select Level">
+          <span id="hud-level">L1: First Steps</span>
+          <span>▾</span>
+        </button>
+        <div id="hud-out" class="hud-pill">OUT 0 • WAIT 10</div>
+      </div>
+
+      <div class="top-group">
+        <div id="hud-saved" class="hud-pill">SAVED 0% / 50% (0/10)</div>
+        <div id="hud-timer" class="hud-pill">03:00</div>
+        <button type="button" id="btn-reset-view" class="top-btn hidden" title="Reset Zoom (Double-Tap)">1:1</button>
+        <button type="button" id="btn-mute" class="top-btn" title="Toggle Sound">🔊</button>
+      </div>
+    </header>
+
+    <!-- GAMEPLAY CANVAS -->
+    <main id="viewport">
+      <canvas id="game-canvas"></canvas>
+      <div id="level-banner">
+        <div id="banner-title">LEVEL 1: FIRST STEPS</div>
+        <div id="banner-hint">Select BUILDER and tap a lemming near the chasm edge.</div>
+      </div>
+    </main>
+
+    <!-- BOTTOM SKILL & UTILITY BAR -->
+    <footer id="bottom-bar">
+      <!-- Release Rate - / + -->
+      <div class="rate-box" title="Spawn Release Rate">
+        <button type="button" id="btn-rate-minus" class="rate-btn" aria-label="Decrease Release Rate">−</button>
+        <div class="rate-readout">
+          <span class="rate-label">RATE</span>
+          <span id="hud-rate">40</span>
+        </div>
+        <button type="button" id="btn-rate-plus" class="rate-btn" aria-label="Increase Release Rate">+</button>
+      </div>
+
+      <!-- 8 Classic Skills -->
+      <div id="skills-strip">
+        <button type="button" class="skill-btn" data-skill="climber" title="Climber (1)">
+          <span class="skill-count">00</span>
+          <svg class="skill-icon" viewBox="0 0 16 16"><path d="M11 1h3v14h-3V1zM5 3h3v3H5V3zm1 4h4v2H8v3h2v2H5v-5h1V7z"/></svg>
+          <span class="skill-name">Climb</span>
+        </button>
+        <button type="button" class="skill-btn" data-skill="floater" title="Floater (2)">
+          <span class="skill-count">00</span>
+          <svg class="skill-icon" viewBox="0 0 16 16"><path d="M2 5c2-3 10-3 12 0H9v6h2v2H7V5H2zm5 8h2v2H7v-2z"/></svg>
+          <span class="skill-name">Float</span>
+        </button>
+        <button type="button" class="skill-btn" data-skill="bomber" title="Bomber (3)">
+          <span class="skill-count">00</span>
+          <svg class="skill-icon" viewBox="0 0 16 16"><path d="M9 1h3v2H9V1zM7 3h2v2H7V3zM4 6a4 4 0 1 1 8 0v4a4 4 0 1 1-8 0V6z"/></svg>
+          <span class="skill-name">Bomb</span>
+        </button>
+        <button type="button" class="skill-btn" data-skill="blocker" title="Blocker (4)">
+          <span class="skill-count">00</span>
+          <svg class="skill-icon" viewBox="0 0 16 16"><path d="M6 2h4v3H6V2zM1 6h14v3H1V6zm4 3h6v6H9v-3H7v3H5V9z"/></svg>
+          <span class="skill-name">Block</span>
+        </button>
+        <button type="button" class="skill-btn selected" data-skill="builder" title="Builder (5)">
+          <span class="skill-count">00</span>
+          <svg class="skill-icon" viewBox="0 0 16 16"><path d="M1 12h5v3H1v-3zm4-3h5v3H5V9zm4-3h6v3H9V6zm3-3h3v3h-3V3z"/></svg>
+          <span class="skill-name">Build</span>
+        </button>
+        <button type="button" class="skill-btn" data-skill="basher" title="Basher (6)">
+          <span class="skill-count">00</span>
+          <svg class="skill-icon" viewBox="0 0 16 16"><path d="M2 5h6V3l6 5-6 5v-2H2V5z"/></svg>
+          <span class="skill-name">Bash</span>
+        </button>
+        <button type="button" class="skill-btn" data-skill="miner" title="Miner (7)">
+          <span class="skill-count">00</span>
+          <svg class="skill-icon" viewBox="0 0 16 16"><path d="M3 3l3 3 2-2 5 5-2 2 3 3H8l-2-2-3 3-1-1 3-3-3-3 1-5z"/></svg>
+          <span class="skill-name">Mine</span>
+        </button>
+        <button type="button" class="skill-btn" data-skill="digger" title="Digger (8)">
+          <span class="skill-count">00</span>
+          <svg class="skill-icon" viewBox="0 0 16 16"><path d="M6 2h4v6h3l-5 6-5-6h3V2z"/></svg>
+          <span class="skill-name">Dig</span>
+        </button>
+      </div>
+
+      <!-- Utility Controls -->
+      <div class="utility-strip">
+        <button type="button" id="btn-pause" class="util-btn" title="Pause (Space)">
+          <span class="util-icon">⏸</span>
+          <span>PAUSE</span>
+        </button>
+        <button type="button" id="btn-ff" class="util-btn" title="Fast Forward 2x (F)">
+          <span class="util-icon">⏩</span>
+          <span>2X</span>
+        </button>
+        <button type="button" id="btn-restart" class="util-btn" title="Restart Level (R)">
+          <span class="util-icon">↺</span>
+          <span>RETRY</span>
+        </button>
+        <button type="button" id="btn-nuke" class="util-btn nuke-btn" title="Nuke All Lemmings">
+          <span class="util-icon">☢</span>
+          <span>NUKE</span>
+        </button>
+      </div>
+    </footer>
+  </div>
+
+  <!-- LEVEL SELECT MODAL -->
+  <div id="levels-modal" class="modal-backdrop hidden">
+    <div class="modal-box">
+      <div class="modal-title">SELECT CAVERN LEVEL</div>
+      <div class="modal-subtitle">Tap any level to play • Pinch to zoom, drag to pan, double-tap to reset view</div>
+      <div id="levels-list"></div>
+      <div class="modal-actions">
+        <button type="button" id="btn-close-levels" class="action-btn">CLOSE</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LEVEL COMPLETE / FAILED MODAL -->
+  <div id="result-modal" class="modal-backdrop hidden">
+    <div class="modal-box">
+      <div id="result-title" class="modal-title win-text">LEVEL COMPLETE!</div>
+      <div id="result-subtitle" class="modal-subtitle">Level 1: First Steps</div>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">SAVED</div>
+          <div id="result-saved" class="stat-val">100%</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">QUOTA NEEDED</div>
+          <div id="result-quota" class="stat-val">50%</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">BEST RECORD</div>
+          <div id="result-best" class="stat-val">100%</div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" id="btn-result-retry" class="action-btn">↺ RETRY</button>
+        <button type="button" id="btn-result-next" class="action-btn primary">NEXT LEVEL ▶</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PORTRAIT ROTATE PHONE HINT -->
+  <div id="rotate-overlay">
+    <div class="phone-icon">📱</div>
+    <div class="modal-title">ROTATE YOUR IPHONE</div>
+    <div class="modal-subtitle">
+      Lemmings Cavern Rescue is designed for landscape play so you can see the whole cavern and tap skills comfortably.
+    </div>
+    <button type="button" id="btn-dismiss-rotate" class="action-btn">PLAY IN PORTRAIT ANYWAY</button>
+  </div>
+
+  <script src="levels.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>

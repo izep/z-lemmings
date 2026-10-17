@@ -1,0 +1,25 @@
+{
+  "name": "Lemmings Cavern Rescue",
+  "short_name": "Lemmings",
+  "description": "Original pixel-art Lemmings puzzle game with destructible terrain and 8 classic skills.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#0d1017",
+  "theme_color": "#141824",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
